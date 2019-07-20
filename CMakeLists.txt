@@ -15,6 +15,7 @@ if(CMAKE_SIZEOF_VOID_P EQUAL 8)
 endif()
 
 add_subdirectory( secp256k1 )
+add_subdirectory( libbitcoin-system/builds/cmake )
 
 IF( ECC_IMPL STREQUAL openssl )
   SET( ECC_REST src/crypto/elliptic_impl_pub.cpp )

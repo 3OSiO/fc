@@ -614,3 +614,151 @@ int secp256k1_rangeproof_sign(const secp256k1_context_t* ctx, unsigned char *pro
     return secp256k1_rangeproof_sign_impl(&ctx->ecmult_ctx, &ctx->ecmult_gen_ctx, &ctx->ecmult_gen2_ctx, &ctx->rangeproof_ctx,
      proof, plen, min_value, commit, blind, nonce, exp, min_bits, value);
 }
+
+static int secp256k1_pubkey_load(const secp256k1_context_t* ctx, secp256k1_ge_t* ge, const unsigned char* pubkey) {
+    if (sizeof(secp256k1_ge_storage_t) == 64) {
+        /* When the secp256k1_ge_storage type is exactly 64 byte, use its
+         * representation inside secp256k1_pubkey, as conversion is very fast.
+         * Note that secp256k1_pubkey_save must use the same representation. */
+        secp256k1_ge_storage_t s;
+        memcpy(&s, pubkey, sizeof(s));
+        secp256k1_ge_from_storage(ge, &s);
+    } else {
+        /* Otherwise, fall back to 32-byte big endian for X and Y. */
+        secp256k1_fe_t x, y;
+        secp256k1_fe_set_b32(&x, pubkey);
+        secp256k1_fe_set_b32(&y, pubkey + 32);
+        secp256k1_ge_set_xy(ge, &x, &y);
+    }
+    DEBUG_CHECK(!secp256k1_fe_is_zero(&ge->x));
+    return 1;
+}
+
+static void secp256k1_pubkey_save(unsigned char* pubkey, secp256k1_ge_t* ge) {
+    if (sizeof(secp256k1_ge_storage_t) == 64) {
+        secp256k1_ge_storage_t s;
+        secp256k1_ge_to_storage(&s, ge);
+        memcpy(pubkey, &s, sizeof(s));
+    } else {
+        DEBUG_CHECK(!secp256k1_ge_is_infinity(ge));
+        secp256k1_fe_normalize_var(&ge->x);
+        secp256k1_fe_normalize_var(&ge->y);
+        secp256k1_fe_get_b32(pubkey, &ge->x);
+        secp256k1_fe_get_b32(pubkey + 32, &ge->y);
+    }
+}
+
+int secp256k1_ec_pubkey_parse(const secp256k1_context_t* ctx, unsigned char* pubkey, int pubkeylen, const unsigned char* input, int inputlen) {
+   secp256k1_ge_t p;
+
+   DEBUG_CHECK(ctx != NULL);
+   DEBUG_CHECK(pubkey != NULL);
+   memset(pubkey, 0, pubkeylen);
+   DEBUG_CHECK(input != NULL);
+   if (!secp256k1_eckey_pubkey_parse(&p, input, inputlen)) {
+      return 0;
+   }
+   secp256k1_pubkey_save(pubkey, &p);
+   secp256k1_ge_clear(&p);
+   return 1;
+}
+
+int secp256k1_ec_pubkey_serialize(const secp256k1_context_t* ctx, unsigned char *output, int *outputlen, const unsigned char* pubkey, int pubkeylen, int compressed) {
+    secp256k1_ge_t p;
+    int len;
+    int ret = 0;
+
+    DEBUG_CHECK(ctx != NULL);
+    DEBUG_CHECK(outputlen != NULL);
+    DEBUG_CHECK(*outputlen >= ((compressed) ? 33 : 65));
+    len = *outputlen;
+    *outputlen = 0;
+    DEBUG_CHECK(output != NULL);
+    memset(output, 0, len);
+    DEBUG_CHECK(pubkey != NULL);
+    if (secp256k1_eckey_pubkey_parse(&p, pubkey, pubkeylen)) {
+        ret = secp256k1_eckey_pubkey_serialize(&p, output, outputlen, compressed);
+    }
+    return ret;
+}
+
+int secp256k1_ec_privkey_negate(const secp256k1_context_t* ctx, unsigned char *seckey) {
+    secp256k1_scalar_t sec;
+    DEBUG_CHECK(ctx != NULL);
+    DEBUG_CHECK(seckey != NULL);
+
+    secp256k1_scalar_set_b32(&sec, seckey, NULL);
+    secp256k1_scalar_negate(&sec, &sec);
+    secp256k1_scalar_get_b32(seckey, &sec);
+
+    secp256k1_scalar_clear(&sec);
+    return 1;
+}
+
+int secp256k1_ec_pubkey_negate(const secp256k1_context_t* ctx, unsigned char* pubkey, int pubkeylen) {
+    int ret = 0;
+    secp256k1_ge_t p;
+    DEBUG_CHECK(ctx != NULL);
+    DEBUG_CHECK(pubkey != NULL);
+
+    ret = secp256k1_pubkey_load(ctx, &p, pubkey);
+    memset(pubkey, 0, pubkeylen);
+    if (ret) {
+        secp256k1_ge_neg(&p, &p);
+        secp256k1_pubkey_save(pubkey, &p);
+    }
+    return ret;
+}
+
+int secp256k1_ec_pubkey_combine(const secp256k1_context_t* ctx, unsigned char* pubnonce, int pubnoncelen, const unsigned char* const *pubnonces, int n) {
+    int i;
+    secp256k1_gej_t pj;
+    secp256k1_ge_t p;
+
+    DEBUG_CHECK(pubnonce != NULL);
+    memset(pubnonce, 0, pubnoncelen);
+    DEBUG_CHECK(n >= 1);
+    DEBUG_CHECK(pubnonces != NULL);
+
+    secp256k1_gej_set_infinity(&pj);
+
+    for (i = 0; i < n; i++) {
+        secp256k1_pubkey_load(ctx, &p, pubnonces[i]);
+        secp256k1_gej_add_ge(&pj, &pj, &p);
+    }
+    if (secp256k1_gej_is_infinity(&pj)) {
+        return 0;
+    }
+    secp256k1_ge_set_gej(&p, &pj);
+    secp256k1_pubkey_save(pubnonce, &p);
+    return 1;
+}
+
+static void secp256k1_ecdsa_signature_load(const secp256k1_context_t* ctx, secp256k1_scalar_t* r, secp256k1_scalar_t* s, int* recid, const unsigned char* sig) {
+    (void)ctx;
+    if (sizeof(secp256k1_scalar_t) == 32) {
+        /* When the secp256k1_scalar type is exactly 32 byte, use its
+         * representation inside secp256k1_ecdsa_signature, as conversion is very fast.
+         * Note that secp256k1_ecdsa_signature_save must use the same representation. */
+        memcpy(r, sig, 32);
+        memcpy(s, sig + 32, 32);
+    } else {
+        secp256k1_scalar_set_b32(r, sig, NULL);
+        secp256k1_scalar_set_b32(s, sig + 32, NULL);
+    }
+    *recid = sig[64];
+}
+
+int secp256k1_ecdsa_signature_serialize_compact(const secp256k1_context_t* ctx, unsigned char *output64, int *recid, const unsigned char* sig) {
+    secp256k1_scalar_t r, s;
+
+    (void)ctx;
+    DEBUG_CHECK(output64 != NULL);
+    DEBUG_CHECK(sig != NULL);
+    DEBUG_CHECK(recid != NULL);
+
+    secp256k1_ecdsa_signature_load(ctx, &r, &s, recid, sig);
+    secp256k1_scalar_get_b32(&output64[0], &r);
+    secp256k1_scalar_get_b32(&output64[32], &s);
+    return 1;
+}

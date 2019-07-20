@@ -526,6 +526,107 @@ SECP256K1_WARN_UNUSED_RESULT int secp256k1_rangeproof_info(
  int plen
 )SECP256K1_ARG_NONNULL(1) SECP256K1_ARG_NONNULL(2) SECP256K1_ARG_NONNULL(3) SECP256K1_ARG_NONNULL(4) SECP256K1_ARG_NONNULL(5);
 
+/** Parse a variable-length public key into the pubkey object.
+ *
+ *  Returns: 1 if the public key was fully valid.
+ *           0 if the public key could not be parsed or is invalid.
+ *  Args: ctx:      a secp256k1 context object.
+ *  Out:  pubkey:   pointer to a pubkey object. If 1 is returned, it is set to a
+ *                  parsed version of input. If not, its value is undefined.
+ *  In:   input:    pointer to a serialized public key
+ *        inputlen: length of the array pointed to by input
+ *
+ *  This function supports parsing compressed (33 bytes, header byte 0x02 or
+ *  0x03), uncompressed (65 bytes, header byte 0x04), or hybrid (65 bytes, header
+ *  byte 0x06 or 0x07) format public keys.
+ */
+SECP256K1_WARN_UNUSED_RESULT int secp256k1_ec_pubkey_parse(
+    const secp256k1_context_t* ctx,
+    unsigned char* pubkey,
+    int pubkeylen,
+    const unsigned char *input,
+    int inputlen
+)SECP256K1_ARG_NONNULL(1) SECP256K1_ARG_NONNULL(2) SECP256K1_ARG_NONNULL(4);
+
+/** Serialize a pubkey object into a serialized byte sequence.
+ *
+ *  Returns: 1 always.
+ *  Args:   ctx:        a secp256k1 context object.
+ *  Out:    output:     a pointer to a 65-byte (if compressed==0) or 33-byte (if
+ *                      compressed==1) byte array to place the serialized key
+ *                      in.
+ *  In/Out: outputlen:  a pointer to an integer which is initially set to the
+ *                      size of output, and is overwritten with the written
+ *                      size.
+ *  In:     pubkey:     a pointer to a secp256k1_pubkey containing an
+ *                      initialized public key.
+ *          flags:      SECP256K1_EC_COMPRESSED if serialization should be in
+ *                      compressed format, otherwise SECP256K1_EC_UNCOMPRESSED.
+ */
+int secp256k1_ec_pubkey_serialize(
+    const secp256k1_context_t* ctx,
+    unsigned char *output,
+    int *outputlen,
+    const unsigned char* pubkey,
+    int pubkeylen,
+    int compressed
+)SECP256K1_ARG_NONNULL(1) SECP256K1_ARG_NONNULL(2) SECP256K1_ARG_NONNULL(3) SECP256K1_ARG_NONNULL(4);
+
+/** Negates a private key in place.
+ *
+ *  Returns: 1 always
+ *  Args:   ctx:        pointer to a context object
+ *  In/Out: seckey:     pointer to the 32-byte private key to be negated (cannot be NULL)
+ */
+SECP256K1_WARN_UNUSED_RESULT int secp256k1_ec_privkey_negate(
+    const secp256k1_context_t* ctx,
+    unsigned char *seckey
+)SECP256K1_ARG_NONNULL(1) SECP256K1_ARG_NONNULL(2);
+
+/** Negates a public key in place.
+ *
+ *  Returns: 1 always
+ *  Args:   ctx:        pointer to a context object
+ *  In/Out: pubkey:     pointer to the public key to be negated (cannot be NULL)
+ */
+SECP256K1_WARN_UNUSED_RESULT int secp256k1_ec_pubkey_negate(
+    const secp256k1_context_t* ctx,
+    unsigned char* pubkey,
+    int pubkeylen
+)SECP256K1_ARG_NONNULL(1) SECP256K1_ARG_NONNULL(2);
+
+/** Add a number of public keys together.
+ *  Returns: 1: the sum of the public keys is valid.
+ *           0: the sum of the public keys is not valid.
+ *  Args:   ctx:        pointer to a context object
+ *  Out:    out:        pointer to a public key object for placing the resulting public key
+ *                      (cannot be NULL)
+ *  In:     ins:        pointer to array of pointers to public keys (cannot be NULL)
+ *          n:          the number of public keys to add together (must be at least 1)
+ */
+SECP256K1_WARN_UNUSED_RESULT int secp256k1_ec_pubkey_combine(
+    const secp256k1_context_t* ctx,
+    unsigned char* out,
+    int outlen,
+    const unsigned char * const * ins,
+    int n
+)SECP256K1_ARG_NONNULL(2) SECP256K1_ARG_NONNULL(4);
+
+/** Serialize an ECDSA signature in compact format (64 bytes + recovery id).
+ *
+ *  Returns: 1
+ *  Args: ctx:      a secp256k1 context object
+ *  Out:  output64: a pointer to a 64-byte array of the compact signature (cannot be NULL)
+ *        recid:    a pointer to an integer to hold the recovery id (can be NULL).
+ *  In:   sig:      a pointer to an initialized signature object (cannot be NULL)
+ */
+int secp256k1_ecdsa_signature_serialize_compact(
+    const secp256k1_context_t* ctx,
+    unsigned char *output64,
+    int *recid,
+    const unsigned char* sig
+)SECP256K1_ARG_NONNULL(1) SECP256K1_ARG_NONNULL(2) SECP256K1_ARG_NONNULL(3) SECP256K1_ARG_NONNULL(4);
+
 # ifdef __cplusplus
 }
 # endif
