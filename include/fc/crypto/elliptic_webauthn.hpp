@@ -112,6 +112,32 @@ class signature {
       std::string                       client_json;
 };
 
+// dummy type
+struct private_key {
+   using data_type = sha256;
+   using public_key_type = public_key;
+   using signature_type = signature;
+
+   private_key() {}
+   private_key(const data_type& data) : _data(data) {}
+   private_key(data_type&& data) : _data(data) {}
+
+   const data_type& serialize() const {
+      return _data;
+   }
+   signature_type sign(const sha256& digest, bool require_canonical = true) const {
+      return signature_type();
+   }
+   public_key_type get_public_key() const {
+      return public_key_type();
+   }
+   sha512 generate_shared_secret(const public_key_type& pub_key) const {
+      return sha512();
+   }
+
+   data_type _data;
+};
+
 }
 
 template<>
@@ -146,3 +172,4 @@ struct less_comparator<webauthn::public_key> {
 #include <fc/reflect/reflect.hpp>
 
 FC_REFLECT(fc::crypto::webauthn::signature, (compact_signature)(auth_data)(client_json))
+FC_REFLECT(fc::crypto::webauthn::private_key, (_data))

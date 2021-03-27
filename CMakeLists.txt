@@ -94,6 +94,7 @@ set( fc_sources
      src/crypto/sha512.cpp
      src/crypto/dh.cpp
      src/crypto/blowfish.cpp
+     src/crypto/edwards_ed25519.cpp
      src/crypto/elliptic_common.cpp
      ${ECC_REST}
      src/crypto/elliptic_${ECC_IMPL}.cpp

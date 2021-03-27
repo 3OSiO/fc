@@ -3,6 +3,7 @@
 #include <fc/crypto/elliptic.hpp>
 #include <fc/crypto/elliptic_r1.hpp>
 #include <fc/crypto/elliptic_webauthn.hpp>
+#include <fc/crypto/edwards_ed25519.hpp>
 #include <fc/reflect/reflect.hpp>
 #include <fc/reflect/variant.hpp>
 
@@ -12,14 +13,15 @@ namespace fc { namespace crypto {
       constexpr const char* signature_prefix[] = {
          "K1",
          "R1",
-         "WA"
+         "WA",
+         "ED25519"
       };
    };
 
    class signature
    {
       public:
-         using storage_type = static_variant<ecc::signature_shim, r1::signature_shim, webauthn::signature>;
+         using storage_type = static_variant<ecc::signature_shim, r1::signature_shim, webauthn::signature, ed25519::signature_shim>;
 
          signature() = default;
          signature( signature&& ) = default;

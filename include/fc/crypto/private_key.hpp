@@ -1,6 +1,8 @@
 #pragma once
 #include <fc/crypto/elliptic.hpp>
 #include <fc/crypto/elliptic_r1.hpp>
+#include <fc/crypto/elliptic_webauthn.hpp>
+#include <fc/crypto/edwards_ed25519.hpp>
 #include <fc/crypto/public_key.hpp>
 #include <fc/reflect/reflect.hpp>
 #include <fc/reflect/variant.hpp>
@@ -12,14 +14,16 @@ namespace fc { namespace crypto {
       constexpr const char* private_key_base_prefix = "PVT";
       constexpr const char* private_key_prefix[] = {
          "K1",
-         "R1"
+         "R1",
+         "WA", // dummy enum
+         "ED25519"
       };
    };
 
    class private_key
    {
       public:
-         using storage_type = static_variant<ecc::private_key_shim, r1::private_key_shim>;
+         using storage_type = static_variant<ecc::private_key_shim, r1::private_key_shim, webauthn::private_key, ed25519::private_key_shim>;
 
          private_key() = default;
          private_key( private_key&& ) = default;
@@ -37,6 +41,11 @@ namespace fc { namespace crypto {
 
          template< typename KeyType = r1::private_key_shim >
          static private_key generate_r1() {
+            return private_key(storage_type(KeyType::generate()));
+         }
+
+         template< typename KeyType = ed25519::private_key_shim >
+         static private_key generate_ed25519() {
             return private_key(storage_type(KeyType::generate()));
          }
 
