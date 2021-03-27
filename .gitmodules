@@ -4,3 +4,6 @@
 [submodule "include/fc/crypto/webauthn_json"]
 	path = include/fc/crypto/webauthn_json
 	url = https://github.com/Tencent/rapidjson/
+[submodule "libsodium/libsodium"]
+	path = libsodium/libsodium
+	url = https://github.com/turnpike/libsodium
